@@ -5,4 +5,4 @@ venv2
 \#*\#
 *.swp
 venv
-
+.DS_Store

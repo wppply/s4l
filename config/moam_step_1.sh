@@ -16,7 +16,8 @@
 
 python main.py \
   --task rotation_vat \
-  --dataset imagenet \
+  --sup_dataset wmtfashion \
+  --unsup_dataset googlefashion \
   --train_split trainval \
   --val_split test \
   --batch_size 128 \
@@ -32,7 +33,7 @@ python main.py \
   --eval_timeout_mins 240 \
   --schedule '10,100,150,190,200' \
   --sup_preprocessing 'copy_label|inception_crop|resize(224)|flip_lr|-1_to_1|rotate' \
-  --sup_preprocessing_eval 'copy_label|resize_small(256)|crop(224)|-1_to_1|rotate' \
+  --sup_preprocessing_eval 'copy_label|resize_small(224)|crop(224)|-1_to_1|rotate' \
   --preprocessing 'inception_crop|resize(224)|flip_lr|-1_to_1|rotate' \
   --preprocessing_eval 'resize_small(256)|crop(224)|-1_to_1|rotate' \
   --apply_vat_to_labeled \

@@ -43,12 +43,12 @@ def linear(inputs, num_outputs, name, reuse=tf.AUTO_REUSE, weight_decay="flag"):
 
   kernel_regularizer = l2_regularizer(scale=weight_decay)
   logits = tf.layers.conv2d(
-      inputs,
-      filters=num_outputs,
-      kernel_size=1,
-      kernel_regularizer=kernel_regularizer,
-      name=name,
-      reuse=reuse)
+    inputs,
+    filters=num_outputs,
+    kernel_size=1,
+    kernel_regularizer=kernel_regularizer,
+    name=name,
+    reuse=reuse)
 
   return tf.squeeze(logits, [1, 2])
 
@@ -57,6 +57,30 @@ def top_k_accuracy(k, labels, logits):
   """Builds a tf.metric for the top-k accuracy between labels and logits."""
   in_top_k = tf.nn.in_top_k(predictions=logits, targets=labels, k=k)
   return tf.metrics.mean(tf.cast(in_top_k, tf.float32))
+
+
+def multi_label_metrics(labels, logits, mode="macro", metric="f1"):
+  """calculate micro/macro labels base on options"""
+  y_true = tf.cast(labels, tf.float32)
+  y_pred = tf.cast(tf.math.grater_equal(logits, 0), tf.float32)  # sigmoid 0.5 threshold
+
+  axis = 0 if mode == "macro" else None
+  TP = tf.count_nonzero(y_pred * y_true, axis=axis)
+  FP = tf.count_nonzero(y_pred * (y_true - 1), axis=axis)
+  FN = tf.count_nonzero((y_pred - 1) * y_true, axis=axis)
+
+  if metric == "precision":
+    precision = TP / (TP + FP)
+    return tf.metrics.mean(precision)
+  elif metric == "recall":
+    recall = TP / (TP + FN)
+    return tf.metrics.mean(recall)
+  elif metric == "f1":
+    precision = TP / (TP + FP)
+    recall = TP / (TP + FN)
+    f1 = 2 * precision * recall / (precision + recall)
+    return tf.metrics.mean(f1)
+
 
 
 def into_batch_dim(x, keep_last_dims=-3):
@@ -89,7 +113,7 @@ def assert_not_in_graph(tensor_name, graph=None):
   if graph is None:
     graph = tf.get_default_graph()
   tensor_names = [
-      tensor.name for tensor in graph.as_graph_def().node
+    tensor.name for tensor in graph.as_graph_def().node
   ]
 
   assert tensor_name not in tensor_names, "%s already exists." % tensor_name
@@ -202,6 +226,7 @@ def str2intlist(s, repeats_if_single=None, strict_int=True):
   Returns:
     A list of integers based on `s`.
   """
+
   def to_int_or_float(s):
     if strict_int:
       return int(s)
@@ -255,9 +280,9 @@ def tf_apply_to_image_or_images(fn, image_or_images, **map_kw):
 def tf_apply_with_probability(p, fn, x):
   """Apply function `fn` to input `x` randomly `p` percent of the time."""
   return tf.cond(
-      tf.less(tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32), p),
-      lambda: fn(x),
-      lambda: x)
+    tf.less(tf.random_uniform([], minval=0, maxval=1, dtype=tf.float32), p),
+    lambda: fn(x),
+    lambda: x)
 
 
 def expand_glob(glob_patterns):
@@ -311,8 +336,8 @@ def get_schedule_from_config(schedule, steps_per_epoch):
   """
   if schedule is None:
     raise ValueError(
-        "You must specify exactly one of config.schedule or "
-        "config.schedule_steps.")
+      "You must specify exactly one of config.schedule or "
+      "config.schedule_steps.")
   elif schedule is not None:
     schedule = str2intlist(schedule, strict_int=False)
     schedule = [epoch * steps_per_epoch for epoch in schedule]

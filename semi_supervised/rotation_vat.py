@@ -52,14 +52,15 @@ def model_fn(data, mode):
       # This is an example of calling `apply_model_semi` with only one of the
       # inputs provided. The outputs will simply use the given names:
       end_points = ss_utils.apply_model_semi(img, None, is_training, outputs={
-          'rotations': num_angles,
-          'classes': datasets.get_auxiliary_num_classes(),
+        'rotations': num_angles,
+        'classes': datasets.get_auxiliary_num_classes(),
       }, normalization_fn=tpu_ops.cross_replica_batch_norm)
       return end_points, end_points['classes']
+
     return trainer.make_estimator(
-        mode, predict_fn=model_building_fn,
-        predict_input=data['image'],
-        polyak_averaging=FLAGS.get_flag_value('polyak_averaging', False))
+      mode, predict_fn=model_building_fn,
+      predict_input=data['image'],
+      polyak_averaging=FLAGS.get_flag_value('polyak_averaging', False))
 
   # In all other cases, we are in train/eval mode.
 
@@ -79,12 +80,12 @@ def model_fn(data, mode):
     # outputs corresponding to each in `end_points` as "rotations_unsup" and
     # similar, which we will use below.
     end_points = ss_utils.apply_model_semi(
-        images_unsup, images_sup,
-        is_training=(mode == tf.estimator.ModeKeys.TRAIN),
-        outputs={
-            'rotations': num_angles,
-            'classes': datasets.get_auxiliary_num_classes(),
-        }, normalization_fn=tpu_ops.cross_replica_batch_norm)
+      images_unsup, images_sup,
+      is_training=(mode == tf.estimator.ModeKeys.TRAIN),
+      outputs={
+        'rotations': num_angles,
+        'classes': datasets.get_auxiliary_num_classes(),
+      }, normalization_fn=tpu_ops.cross_replica_batch_norm)
 
   # Compute virtual adversarial perturbation
   # =====
@@ -92,27 +93,27 @@ def model_fn(data, mode):
   def classification_net_fn(x):  # pylint: disable=missing-docstring
     with tf.variable_scope('module', reuse=True):
       end_points_x = ss_utils.apply_model_semi(
-          x, None,
-          is_training=(mode == tf.estimator.ModeKeys.TRAIN),
-          outputs={'classes': datasets.get_auxiliary_num_classes()},
-          # Don't update batch norm stats as we're running this on perturbed
-          # (corrupted) inputs. Setting decay=1 is what does the trick.
-          normalization_fn=functools.partial(
-              tpu_ops.cross_replica_batch_norm, decay=1.0))
+        x, None,
+        is_training=(mode == tf.estimator.ModeKeys.TRAIN),
+        outputs={'classes': datasets.get_auxiliary_num_classes()},
+        # Don't update batch norm stats as we're running this on perturbed
+        # (corrupted) inputs. Setting decay=1 is what does the trick.
+        normalization_fn=functools.partial(
+          tpu_ops.cross_replica_batch_norm, decay=1.0))
       return end_points_x['classes']
 
   vat_eps = FLAGS.get_flag_value('vat_eps', 1.0)
   vat_num_power_method_iters = FLAGS.get_flag_value('vat_num_power_method_iters', 1)
   vat_perturbation = vat_utils.virtual_adversarial_perturbation_direction(
-      images_unsup,
-      end_points['classes_unsup'],
-      net=classification_net_fn,
-      num_power_method_iters=vat_num_power_method_iters,
+    images_unsup,
+    end_points['classes_unsup'],
+    net=classification_net_fn,
+    num_power_method_iters=vat_num_power_method_iters,
   ) * vat_eps
 
   loss_vat = tf.reduce_mean(vat_utils.kl_divergence_from_logits(
-      classification_net_fn(images_unsup + vat_perturbation),
-      tf.stop_gradient(end_points['classes_unsup'])))
+    classification_net_fn(images_unsup + vat_perturbation),
+    tf.stop_gradient(end_points['classes_unsup'])))
 
   # Compute the rotation self-supervision loss.
   # =====
@@ -120,34 +121,39 @@ def model_fn(data, mode):
   # Compute the rotation loss on the unsupervised images.
   labels_rot_unsup = tf.reshape(data[0]['label'], [-1])
   loss_rot_unsup = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits=end_points['rotations_unsup'], labels=labels_rot_unsup)
+    logits=end_points['rotations_unsup'], labels=labels_rot_unsup)
   loss_rot = tf.reduce_mean(loss_rot_unsup)
 
   # And on the supervised images too.
   labels_rot_sup = tf.reshape(data[1]['label'], [-1])
   loss_rot_sup = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      logits=end_points['rotations_sup'], labels=labels_rot_sup)
+    logits=end_points['rotations_sup'], labels=labels_rot_sup)
   loss_rot_sup = tf.reduce_mean(loss_rot_sup)
 
-  loss_rot = 0.5*loss_rot + 0.5*loss_rot_sup
+  loss_rot = 0.5 * loss_rot + 0.5 * loss_rot_sup
 
   # Compute the classification loss on supervised images.
   # =====
   logits_class = end_points['classes_sup']
 
   # Replicate the supervised label for each rotated version.
-  labels_class_repeat = tf.tile(labels_class[:, None], [1, num_angles])
-  labels_class_repeat = tf.reshape(labels_class_repeat, [-1])
+  # sigmoid loss with mask to ignore -1
+  zeros = tf.zeros_like(labels_class)
+  ones = tf.ones_like(labels_class)
+  weights = tf.where(tf.less(labels_class, 0), zeros, ones)
 
-  loss_class = tf.nn.sparse_softmax_cross_entropy_with_logits(
-      labels=labels_class_repeat, logits=logits_class)
+  labels_class_repeat = tf.tile(labels_class[:, None], [num_angles, 1])
+  # labels_class_repeat = tf.reshape(labels_class_repeat, [-1, ])
+
+  loss_class = tf.losses.sigmoid_cross_entropy(
+    multi_class_labels=labels_class_repeat, logits=logits_class, weights=weights)
   loss_class = tf.reduce_mean(loss_class)
 
   # Compute the EntMin regularization loss.
   # =====
   logits_unsup = end_points['classes_unsup']
   conditional_ent = -tf.reduce_sum(
-      tf.nn.log_softmax(logits_unsup) * tf.nn.softmax(logits_unsup), axis=-1)
+    tf.nn.log_softmax(logits_unsup) * tf.nn.softmax(logits_unsup), axis=-1)
   loss_entmin = tf.reduce_mean(conditional_ent)
 
   # Combine losses and define metrics.
@@ -165,19 +171,19 @@ def model_fn(data, mode):
           FLAGS.entmin_factor * loss_entmin)
 
   train_scalar_summaries = {
-      'vat_eps': vat_eps,
-      'vat_weight': wv,
-      'vat_num_power_method_iters': vat_num_power_method_iters,
-      'loss_class': loss_class,
-      'loss_class_weighted': wc * loss_class,
-      'class_weight': wc,
-      'loss_vat': loss_vat,
-      'loss_vat_weighted': wv * loss_vat,
-      'rot_weight': 1.0 - wc - wv,
-      'loss_rot': loss_rot,
-      'loss_rot_weighted': (1.0 - wc - wv) * loss_rot,
-      'loss_entmin': loss_entmin,
-      'loss_entmin_weighted': FLAGS.entmin_factor * loss_entmin
+    'vat_eps': vat_eps,
+    'vat_weight': wv,
+    'vat_num_power_method_iters': vat_num_power_method_iters,
+    'loss_class': loss_class,
+    'loss_class_weighted': wc * loss_class,
+    'class_weight': wc,
+    'loss_vat': loss_vat,
+    'loss_vat_weighted': wv * loss_vat,
+    'rot_weight': 1.0 - wc - wv,
+    'loss_rot': loss_rot,
+    'loss_rot_weighted': (1.0 - wc - wv) * loss_rot,
+    'loss_entmin': loss_entmin,
+    'loss_entmin_weighted': FLAGS.entmin_factor * loss_entmin
   }
 
   # For evaluation, we want to see the result of using only the un-rotated, and
@@ -187,23 +193,32 @@ def model_fn(data, mode):
   logits_class_avg = tf.reduce_mean(logits_class, axis=1)
 
   eval_metrics = (
-      lambda labels_rot_unsup, logits_rot_unsup, labels_class, logits_class_orig, logits_class_avg: {  # pylint: disable=g-long-lambda,line-too-long
-          'rotation top1 accuracy':
-              utils.top_k_accuracy(1, labels_rot_unsup, logits_rot_unsup),
-          'classification/unrotated top1 accuracy':
-              utils.top_k_accuracy(1, labels_class, logits_class_orig),
-          'classification/unrotated top5 accuracy':
-              utils.top_k_accuracy(5, labels_class, logits_class_orig),
-          'classification/rot_avg top1 accuracy':
-              utils.top_k_accuracy(1, labels_class, logits_class_avg),
-          'classification/rot_avg top5 accuracy':
-              utils.top_k_accuracy(5, labels_class, logits_class_avg),
-      },
-      [
-          labels_rot_unsup, end_points['rotations_unsup'],
-          labels_class, logits_class_orig, logits_class_avg,
-      ])
+    lambda labels_rot_unsup, logits_rot_unsup, labels_class, logits_class_orig, logits_class_avg: {
+      # pylint: disable=g-long-lambda,line-too-long
+      'rotation top1 accuracy':
+        utils.top_k_accuracy(1, labels_rot_unsup, logits_rot_unsup),
+      'classification/unrotated macro precision':
+        utils.multi_label_metrics(labels_class, logits_class_orig, "macro", "precision"),
+      'classification/unrotated macro recall':
+        utils.multi_label_metrics(labels_class, logits_class_orig, "macro", "recall"),
+      'classification/unrotated micro precision':
+        utils.multi_label_metrics(labels_class, logits_class_orig, "micro", "precision"),
+      'classification/unrotated micro recall':
+        utils.multi_label_metrics(labels_class, logits_class_orig, "micro", "recall"),
+      'classification/rot_avg macro precision':
+        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "precision"),
+      'classification/rot_avg macro recall':
+        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "recall"),
+      'classification/rot_avg micro precision':
+        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "precision"),
+      'classification/rot_avg micro recall':
+        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "recall"),
+    },
+    [
+      labels_rot_unsup, end_points['rotations_unsup'],
+      labels_class, logits_class_orig, logits_class_avg,
+    ])
 
   return trainer.make_estimator(
-      mode, loss, eval_metrics, train_scalar_summaries=train_scalar_summaries,
-      polyak_averaging=FLAGS.get_flag_value('polyak_averaging', False))
+    mode, loss, eval_metrics, train_scalar_summaries=train_scalar_summaries,
+    polyak_averaging=FLAGS.get_flag_value('polyak_averaging', False))

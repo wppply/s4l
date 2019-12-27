@@ -100,10 +100,10 @@ class AbstractDataset(object):
 
     # Read the data from disk in parallel
     dataset = dataset.apply(
-        tf.data.experimental.parallel_interleave(
-            fetch_dataset,
-            cycle_length=self.num_reader_threads,
-            sloppy=self.shuffle and self.random_seed is None))
+      tf.data.experimental.parallel_interleave(
+        fetch_dataset,
+        cycle_length=self.num_reader_threads,
+        sloppy=self.shuffle and self.random_seed is None))
     return dataset
 
   @abc.abstractmethod
@@ -195,9 +195,9 @@ class DatasetImagenet(AbstractDataset):
   FILENAME_KEY = 'image/filename'
 
   FEATURE_MAP = {
-      IMAGE_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
-      LABEL_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
-      FILENAME_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
+    IMAGE_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
+    LABEL_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
+    FILENAME_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
   }
 
   LABEL_OFFSET = 1
@@ -230,20 +230,20 @@ class DatasetImagenet(AbstractDataset):
     files = os.path.join(os.path.expanduser(FLAGS.dataset_dir),
                          'image_imagenet-%s@%i')
     filenames = {
-        'train': generate_sharded_filenames(files % ('train', 1024))[:-40],
-        'val': generate_sharded_filenames(files % ('train', 1024))[-40:],
-        'trainval': generate_sharded_filenames(files % ('train', 1024)),
-        'test': generate_sharded_filenames(files % ('dev', 128))
+      'train': generate_sharded_filenames(files % ('train', 1024))[:-40],
+      'val': generate_sharded_filenames(files % ('train', 1024))[-40:],
+      'trainval': generate_sharded_filenames(files % ('train', 1024)),
+      'test': generate_sharded_filenames(files % ('dev', 128))
     }
 
     super(DatasetImagenet, self).__init__(
-        filenames=filenames[split_name],
-        reader=tf.data.TFRecordDataset,
-        num_epochs=num_epochs,
-        shuffle=shuffle,
-        random_seed=random_seed,
-        filter_fn=self.get_filter() if filter_filename is not None else None,
-        drop_remainder=drop_remainder)
+      filenames=filenames[split_name],
+      reader=tf.data.TFRecordDataset,
+      num_epochs=num_epochs,
+      shuffle=shuffle,
+      random_seed=random_seed,
+      filter_fn=self.get_filter() if filter_filename is not None else None,
+      drop_remainder=drop_remainder)
     self.split_name = split_name
     self.preprocess_fn = preprocess_fn
 
@@ -253,7 +253,7 @@ class DatasetImagenet(AbstractDataset):
         filename_list = json.load(f)
         filename_list = tf.constant(filename_list['values'])
         filename_list = index_table_from_tensor(
-            mapping=filename_list, num_oov_buckets=0, default_value=-1)
+          mapping=filename_list, num_oov_buckets=0, default_value=-1)
       self.filename_list = filename_list
 
   def _parse_fn(self, value):
@@ -267,17 +267,17 @@ class DatasetImagenet(AbstractDataset):
     """
     if FLAGS.get_flag_value('pseudo_label_key', None):
       self.ORIGINAL_LABEL_KEY = FLAGS.get_flag_value(
-          'original_label_key', None)
+        'original_label_key', None)
       assert self.ORIGINAL_LABEL_KEY is not None, (
-          'You must set original_label_key for pseudo labeling.')
+        'You must set original_label_key for pseudo labeling.')
 
-      #Replace original label_key with pseudo_label_key.
+      # Replace original label_key with pseudo_label_key.
       self.LABEL_KEY = FLAGS.get_flag_value('pseudo_label_key', None)
       self.FEATURE_MAP.update({
-          self.LABEL_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
-          self.ORIGINAL_LABEL_KEY: tf.FixedLenFeature(
-              shape=[], dtype=tf.int64),
-          self.FLAG_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
+        self.LABEL_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
+        self.ORIGINAL_LABEL_KEY: tf.FixedLenFeature(
+          shape=[], dtype=tf.int64),
+        self.FLAG_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
       })
     return tf.parse_single_example(value, self.FEATURE_MAP)
 
@@ -286,19 +286,19 @@ class DatasetImagenet(AbstractDataset):
     # Subtract LABEL_OFFSET so that labels are in [0, 1000).
     label = tf.cast(example[self.LABEL_KEY], tf.int32) - self.LABEL_OFFSET
     if FLAGS.get_flag_value('pseudo_label_key', None):
-        # Always use original label for val / test set.
-        label_original = tf.cast(example[self.ORIGINAL_LABEL_KEY],
-                                 tf.int32) - self.LABEL_OFFSET
-        if self.split_name in ['val', 'test']:
-          label = label_original
-        elif self.split_name in ['train', 'trainval']:
-          label_flag = tf.cast(example[self.FLAG_KEY], tf.int32)
-          label = tf.cond(
-              tf.math.equal(label_flag, tf.constant(1, dtype=tf.int32)),
-              true_fn=lambda: label_original,
-              false_fn=lambda: label)
-        else:
-            raise ValueError('Unkown split{}'.format(self.split_name))
+      # Always use original label for val / test set.
+      label_original = tf.cast(example[self.ORIGINAL_LABEL_KEY],
+                               tf.int32) - self.LABEL_OFFSET
+      if self.split_name in ['val', 'test']:
+        label = label_original
+      elif self.split_name in ['train', 'trainval']:
+        label_flag = tf.cast(example[self.FLAG_KEY], tf.int32)
+        label = tf.cond(
+          tf.math.equal(label_flag, tf.constant(1, dtype=tf.int32)),
+          true_fn=lambda: label_original,
+          false_fn=lambda: label)
+      else:
+        raise ValueError('Unkown split{}'.format(self.split_name))
 
     return self.preprocess_fn({'image': image, 'label': label})
 
@@ -306,11 +306,239 @@ class DatasetImagenet(AbstractDataset):
     def _filter_fn(example):
       index = self.filename_list.lookup(example[self.FILENAME_KEY])
       return tf.math.greater_equal(index, 0)
+
+    return _filter_fn
+
+
+class DatasetWalmartFashion(AbstractDataset):
+  """Provides train/val/trainval/test splits for Imagenet data.
+
+  -> trainval split represents official Imagenet train split.
+  -> train split is derived by taking the first 984 of 1024 shards of
+     the offcial training data.
+  -> val split is derived by taking the last 40 shard of the official
+     training data.
+  -> test split represents official Imagenet test split.
+  """
+
+  # TODO: change those global params
+  COUNTS = {'train': 1231121,
+            'val': 50046,
+            'trainval': 1281167,
+            'test': 50000}
+
+  NUM_CLASSES = 697
+  IMAGE_KEY = 'image/encoded'
+  LABEL_KEY = 'image/class/label'
+  FLAG_KEY = 'image/class/label_flag'
+  FILENAME_KEY = 'image/filename'
+
+  FEATURE_MAP = {
+    IMAGE_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
+    LABEL_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
+    FILENAME_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
+  }
+
+  def __init__(self,
+               split_name,
+               preprocess_fn,
+               num_epochs,
+               shuffle,
+               random_seed=None,
+               filter_filename=None,
+               drop_remainder=True,
+               sup=False):
+    """Initialize the dataset object.
+
+    Args:
+      split_name: A string split name, to load from the dataset.
+      preprocess_fn: Preprocess a single example. The example is already
+        parsed into a dictionary.
+      num_epochs: An int, defaults to `None`. Number of epochs to cycle
+        through the dataset before stopping. If set to `None` this will read
+        samples indefinitely.
+      shuffle: A boolean, defaults to `False`. Whether output data are
+        shuffled.
+      random_seed: Optional int. Random seed for shuffle operation.
+      filter_filename: Optional filename to use for filtering.
+      drop_remainder: If true, then the last incomplete batch is dropped.
+    """
+    # This is an instance-variable instead of a class-variable because it
+    # depends on FLAGS, which is not parsed yet at class-parse-time.
+    dataset_dir = FLAGS.sup_dataset_dir if sup else FLAGS.unsup_dataset_dir
+    files = os.path.join(os.path.expanduser(FLAGS.dataset_dir), '%s@%i')
+    filenames = {
+      'train': generate_sharded_filenames(files % ('train', 1024))[:-40],
+      'val': generate_sharded_filenames(files % ('train', 1024))[-40:],
+      'trainval': generate_sharded_filenames(files % ('train', 1024)),
+      'test': generate_sharded_filenames(files % ('validation', 128))
+    }
+
+    super(DatasetWalmartFashion, self).__init__(
+      filenames=filenames[split_name],
+      reader=tf.data.TFRecordDataset,
+      num_epochs=num_epochs,
+      shuffle=shuffle,
+      random_seed=random_seed,
+      filter_fn=self.get_filter() if filter_filename is not None else None,
+      drop_remainder=drop_remainder)
+    self.split_name = split_name
+    self.preprocess_fn = preprocess_fn
+
+    self.filename_list = None
+    if filter_filename is not None:
+      with tf.gfile.Open(filter_filename, 'r') as f:
+        filename_list = json.load(f)
+        filename_list = tf.constant(filename_list['values'])
+        filename_list = index_table_from_tensor(
+          mapping=filename_list, num_oov_buckets=0, default_value=-1)
+      self.filename_list = filename_list
+
+  def _parse_fn(self, value):
+    """Parses an image and its label from a serialized TFExample.
+
+    Args:
+      value: serialized string containing an TFExample.
+
+    Returns:
+      Returns a tuple of (image, label) from the TFExample.
+    """
+
+    return tf.parse_single_example(value, self.FEATURE_MAP)
+
+  def _decode_fn(self, example):
+    image = tf.cond(tf.image.is_jpeg(example[self.IMAGE_KEY]),
+                    lambda: tf.image.decode_jpeg(example[self.IMAGE_KEY], channels=3),
+                    lambda: tf.image.decode_png(example[self.IMAGE_KEY], channels=3))
+
+    label = tf.cast(example[self.LABEL_KEY], tf.int32)  # a vector here
+
+    return self.preprocess_fn({'image': image, 'label': label})
+
+  def get_filter(self):  # pylint: disable=missing-docstring
+    def _filter_fn(example):
+      index = self.filename_list.lookup(example[self.FILENAME_KEY])
+      return tf.math.greater_equal(index, 0)
+
+    return _filter_fn
+
+
+class DatasetGoogleFashion(AbstractDataset):
+  """Provides train/val/trainval/test splits for Imagenet data.
+
+  -> trainval split represents official Imagenet train split.
+  -> train split is derived by taking the first 984 of 1024 shards of
+     the offcial training data.
+  -> val split is derived by taking the last 40 shard of the official
+     training data.
+  -> test split represents official Imagenet test split.
+  """
+
+  # TODO: change those global params
+  COUNTS = {'train': 1231121,
+            'val': 50046,
+            'trainval': 1281167,
+            'test': 50000}
+
+  NUM_CLASSES = 697
+  IMAGE_KEY = 'image/encoded'
+  LABEL_KEY = 'image/class/label'
+  FLAG_KEY = 'image/class/label_flag'
+  FILENAME_KEY = 'image/filename'
+
+  FEATURE_MAP = {
+    IMAGE_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
+    LABEL_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
+    FILENAME_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
+  }
+
+  def __init__(self,
+               split_name,
+               preprocess_fn,
+               num_epochs,
+               shuffle,
+               random_seed=None,
+               filter_filename=None,
+               drop_remainder=True):
+    """Initialize the dataset object.
+
+    Args:
+      split_name: A string split name, to load from the dataset.
+      preprocess_fn: Preprocess a single example. The example is already
+        parsed into a dictionary.
+      num_epochs: An int, defaults to `None`. Number of epochs to cycle
+        through the dataset before stopping. If set to `None` this will read
+        samples indefinitely.
+      shuffle: A boolean, defaults to `False`. Whether output data are
+        shuffled.
+      random_seed: Optional int. Random seed for shuffle operation.
+      filter_filename: Optional filename to use for filtering.
+      drop_remainder: If true, then the last incomplete batch is dropped.
+    """
+    # This is an instance-variable instead of a class-variable because it
+    # depends on FLAGS, which is not parsed yet at class-parse-time.
+    files = os.path.join(os.path.expanduser(FLAGS.dataset_dir),
+                         '%s@%i')
+    filenames = {
+      'train': generate_sharded_filenames(files % ('train', 1024))[:-40],
+      'val': generate_sharded_filenames(files % ('train', 1024))[-40:],
+      'trainval': generate_sharded_filenames(files % ('train', 1024)),
+      'test': generate_sharded_filenames(files % ('validation', 128))
+    }
+
+    super(DatasetGoogleFashion, self).__init__(
+      filenames=filenames[split_name],
+      reader=tf.data.TFRecordDataset,
+      num_epochs=num_epochs,
+      shuffle=shuffle,
+      random_seed=random_seed,
+      filter_fn=self.get_filter() if filter_filename is not None else None,
+      drop_remainder=drop_remainder)
+    self.split_name = split_name
+    self.preprocess_fn = preprocess_fn
+
+    self.filename_list = None
+    if filter_filename is not None:
+      with tf.gfile.Open(filter_filename, 'r') as f:
+        filename_list = json.load(f)
+        filename_list = tf.constant(filename_list['values'])
+        filename_list = index_table_from_tensor(
+          mapping=filename_list, num_oov_buckets=0, default_value=-1)
+      self.filename_list = filename_list
+
+  def _parse_fn(self, value):
+    """Parses an image and its label from a serialized TFExample.
+
+    Args:
+      value: serialized string containing an TFExample.
+
+    Returns:
+      Returns a tuple of (image, label) from the TFExample.
+    """
+
+    return tf.parse_single_example(value, self.FEATURE_MAP)
+
+  def _decode_fn(self, example):
+    image = tf.cond(tf.image.is_jpeg(example[self.IMAGE_KEY]),
+                    lambda: tf.image.decode_jpeg(example[self.IMAGE_KEY], channels=3),
+                    lambda: tf.image.decode_png(example[self.IMAGE_KEY], channels=3))
+
+    label = tf.cast(example[self.LABEL_KEY], tf.int32)  # a vector here
+
+    return self.preprocess_fn({'image': image, 'label': label})
+
+  def get_filter(self):  # pylint: disable=missing-docstring
+    def _filter_fn(example):
+      index = self.filename_list.lookup(example[self.FILENAME_KEY])
+      return tf.math.greater_equal(index, 0)
+
     return _filter_fn
 
 
 DATASET_MAP = {
-    'imagenet': DatasetImagenet,
+  'imagenet': DatasetImagenet,
+  'wmtfashion': DatasetWalmartFashion,
+  'googlefashion': DatasetGoogleFashion,
 }
 
 
@@ -321,18 +549,20 @@ def get_data_batch(batch_size,  # pylint: disable=missing-docstring
                    filename_list=None,
                    shuffle=True,
                    num_epochs=None,
-                   drop_remainder=False):
-  dataset = DATASET_MAP[FLAGS.dataset]
+                   drop_remainder=False,
+                   sup=False):
+  dataset = DATASET_MAP[FLAGS.sup_dataset] if sup else DATASET_MAP[FLAGS.unsup_dataset]
   preprocess_fn = get_preprocess_fn(preprocessing, is_training)
 
   return dataset(
-      split_name=split_name,
-      preprocess_fn=preprocess_fn,
-      shuffle=shuffle,
-      num_epochs=num_epochs,
-      random_seed=FLAGS.random_seed,
-      filter_filename=filename_list,
-      drop_remainder=drop_remainder).input_fn(batch_size)
+    split_name=split_name,
+    preprocess_fn=preprocess_fn,
+    shuffle=shuffle,
+    num_epochs=num_epochs,
+    random_seed=FLAGS.random_seed,
+    filter_filename=filename_list,
+    drop_remainder=drop_remainder,
+    sup=sup).input_fn(batch_size)
 
 
 def get_data(params,
@@ -363,12 +593,12 @@ def get_data(params,
                         split_name, is_training,
                         preprocessing, filename_list,
                         shuffle, num_epochs,
-                        drop_remainder)
+                        drop_remainder, sup=False)
   if is_training:
     if FLAGS.filename_list_template:
       # Explicitly filter labelled samples by specific filenames
       filename_list = FLAGS.filename_list_template.format(
-          FLAGS.num_supervised_examples)
+        FLAGS.num_supervised_examples)
     preproc = FLAGS.sup_preprocessing
   else:
     preproc = FLAGS.get_flag_value('sup_preprocessing_eval',
@@ -378,7 +608,7 @@ def get_data(params,
                             split_name, is_training,
                             preproc, filename_list,
                             shuffle, num_epochs,
-                            drop_remainder)
+                            drop_remainder, sup=True)
   data = tf.data.Dataset.zip((data, sup_data))
   # NOTE: y['label'] is not actually used, but it's required by
   #       Tensorflow's tf.Estimator and tf. TPUEstimator API.
@@ -386,7 +616,8 @@ def get_data(params,
 
 
 def get_count(split_name):
-  return DATASET_MAP[FLAGS.dataset].COUNTS[split_name]
+  return min(DATASET_MAP[FLAGS.sup_dataset].COUNTS[split_name],
+             DATASET_MAP[FLAGS.unsup_dataset].COUNTS[split_name])
 
 
 def get_num_classes():

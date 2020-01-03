@@ -137,16 +137,14 @@ def model_fn(data, mode):
   logits_class = end_points['classes_sup']
 
   # Replicate the supervised label for each rotated version.
-  # sigmoid loss with mask to ignore -1
-  zeros = tf.zeros_like(labels_class)
-  ones = tf.ones_like(labels_class)
-  weights = tf.where(tf.less(labels_class, 0), zeros, ones)
+  labels_class_repeat = tf.tile(labels_class[:], [num_angles, 1])
+  #labels_class_repeat = tf.reshape(labels_class_repeat, [-1, ])
 
-  labels_class_repeat = tf.tile(labels_class[:, None], [num_angles, 1])
-  # labels_class_repeat = tf.reshape(labels_class_repeat, [-1, ])
+  zeros = tf.zeros_like(labels_class_repeat)
+  ones = tf.ones_like(labels_class_repeat)
+  weights = tf.where(tf.less(labels_class_repeat, 0), zeros, ones)
 
-  loss_class = tf.losses.sigmoid_cross_entropy(
-    multi_class_labels=labels_class_repeat, logits=logits_class, weights=weights)
+  loss_class = tf.losses.sigmoid_cross_entropy( multi_class_labels=labels_class_repeat, logits=logits_class, weights=weights)
   loss_class = tf.reduce_mean(loss_class)
 
   # Compute the EntMin regularization loss.

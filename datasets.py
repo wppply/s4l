@@ -327,7 +327,7 @@ class DatasetWalmartFashion(AbstractDataset):
             'trainval': 1281167,
             'test': 50000}
 
-  NUM_CLASSES = 697
+  NUM_CLASSES = 86
   IMAGE_KEY = 'image/encoded'
   LABEL_KEY = 'image/class/label'
   FLAG_KEY = 'image/class/label_flag'
@@ -335,7 +335,7 @@ class DatasetWalmartFashion(AbstractDataset):
 
   FEATURE_MAP = {
     IMAGE_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
-    LABEL_KEY: tf.FixedLenFeature(shape=[], dtype=tf.int64),
+    LABEL_KEY: tf.FixedLenFeature(shape=[NUM_CLASSES], dtype=tf.int64, default_value=[0]*NUM_CLASSES),
     FILENAME_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
   }
 
@@ -366,7 +366,7 @@ class DatasetWalmartFashion(AbstractDataset):
     # This is an instance-variable instead of a class-variable because it
     # depends on FLAGS, which is not parsed yet at class-parse-time.
     dataset_dir = FLAGS.sup_dataset_dir if sup else FLAGS.unsup_dataset_dir
-    files = os.path.join(os.path.expanduser(FLAGS.dataset_dir), '%s@%i')
+    files = os.path.join(os.path.expanduser(dataset_dir), '%s@%i')
     filenames = {
       'train': generate_sharded_filenames(files % ('train', 1024))[:-40],
       'val': generate_sharded_filenames(files % ('train', 1024))[-40:],
@@ -435,10 +435,10 @@ class DatasetGoogleFashion(AbstractDataset):
   """
 
   # TODO: change those global params
-  COUNTS = {'train': 1231121,
-            'val': 50046,
-            'trainval': 1281167,
-            'test': 50000}
+  COUNTS = {'train': 252565,
+            'val': 28160,
+            'trainval': 252565,
+            'test': 28160}
 
   NUM_CLASSES = 697
   IMAGE_KEY = 'image/encoded'
@@ -561,8 +561,7 @@ def get_data_batch(batch_size,  # pylint: disable=missing-docstring
     num_epochs=num_epochs,
     random_seed=FLAGS.random_seed,
     filter_filename=filename_list,
-    drop_remainder=drop_remainder,
-    sup=sup).input_fn(batch_size)
+    drop_remainder=drop_remainder).input_fn(batch_size)
 
 
 def get_data(params,
@@ -587,6 +586,7 @@ def get_data(params,
   Returns:
     image, label, example counts
   """
+  params['batch_size'] = 1
   batch_mult = FLAGS.unsup_batch_mult if is_training else 1
   filename_list = None
   data = get_data_batch(int(params['batch_size'] * batch_mult),
@@ -621,8 +621,8 @@ def get_count(split_name):
 
 
 def get_num_classes():
-  return DATASET_MAP[FLAGS.dataset].NUM_CLASSES
+  return DATASET_MAP[FLAGS.sup_dataset].NUM_CLASSES
 
 
 def get_auxiliary_num_classes():
-  return DATASET_MAP[FLAGS.dataset].NUM_CLASSES
+  return DATASET_MAP[FLAGS.unsup_dataset].NUM_CLASSES

@@ -17,10 +17,10 @@
 python main.py \
   --task rotation_vat \
   --sup_dataset wmtfashion \
-  --unsup_dataset googlefashion \
+  --unsup_dataset wmtfashion \
   --train_split trainval \
   --val_split test \
-  --batch_size 128 \
+  --batch_size 7 \
   --eval_batch_size 80 \
   --filename_list_template 'label_map_count_{}_index_0' \
   --num_supervised_examples 128000 \

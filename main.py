@@ -13,9 +13,11 @@
 # limitations under the License.
 
 r"""TODO: Edit."""
-
 from __future__ import absolute_import
 from __future__ import division
+
+# import tensorflow as tf
+# tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
 from absl import app
 from absl import flags
@@ -43,7 +45,6 @@ flags.DEFINE_string('sup_dataset_dir', None, 'Location of the dataset files.')
 flags.DEFINE_string('unsup_dataset', 'imagenet', 'Which dataset to use: `imagenet`')
 flags.DEFINE_string('unsup_dataset_dir', None, 'Location of the dataset files.')
 
-flags.mark_flag_as_required('dataset_dir')
 flags.DEFINE_string('pseudo_label_key', None, 'Key used to retrieve pseudo labels.')
 flags.DEFINE_string('original_label_key', None,
                     'Key used to retrieve original labels if available.')

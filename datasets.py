@@ -320,8 +320,6 @@ class DatasetWalmartFashion(AbstractDataset):
      training data.
   -> test split represents official Imagenet test split.
   """
-
-  # TODO: change those global params
   COUNTS = {'train': 1231121,
             'val': 50046,
             'trainval': 1281167,
@@ -335,7 +333,7 @@ class DatasetWalmartFashion(AbstractDataset):
 
   FEATURE_MAP = {
     IMAGE_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
-    LABEL_KEY: tf.FixedLenFeature(shape=[NUM_CLASSES], dtype=tf.int64, default_value=[0]*NUM_CLASSES),
+    LABEL_KEY: tf.FixedLenFeature(shape=[NUM_CLASSES], dtype=tf.int64, default_value=[0] * NUM_CLASSES),
     FILENAME_KEY: tf.FixedLenFeature(shape=[], dtype=tf.string),
   }
 
@@ -535,10 +533,96 @@ class DatasetGoogleFashion(AbstractDataset):
     return _filter_fn
 
 
+class SythnDataset(AbstractDataset):
+  """Provides train/val/trainval/test splits for Imagenet data.
+
+  -> trainval split represents official Imagenet train split.
+  -> train split is derived by taking the first 984 of 1024 shards of
+     the offcial training data.
+  -> val split is derived by taking the last 40 shard of the official
+     training data.
+  -> test split represents official Imagenet test split.
+  """
+
+  COUNTS = {'train': 1000,
+            'val': 100,
+            'trainval': 1100,
+            'test': 100}
+
+  NUM_CLASSES = 86
+
+  def __init__(self,
+               split_name,
+               preprocess_fn,
+               num_epochs,
+               shuffle,
+               random_seed=None,
+               filter_filename=None,
+               drop_remainder=True):
+    """Initialize the dataset object.
+
+    Args:
+      split_name: A string split name, to load from the dataset.
+      preprocess_fn: Preprocess a single example. The example is already
+        parsed into a dictionary.
+      num_epochs: An int, defaults to `None`. Number of epochs to cycle
+        through the dataset before stopping. If set to `None` this will read
+        samples indefinitely.
+      shuffle: A boolean, defaults to `False`. Whether output data are
+        shuffled.
+      random_seed: Optional int. Random seed for shuffle operation.
+      filter_filename: Optional filename to use for filtering.
+      drop_remainder: If true, then the last incomplete batch is dropped.
+    """
+    # This is an instance-variable instead of a class-variable because it
+    # depends on FLAGS, which is not parsed yet at class-parse-time.
+
+    super(SythnDataset, self).__init__(
+      filenames=None,
+      reader=tf.data.TFRecordDataset,
+      num_epochs=num_epochs,
+      shuffle=shuffle,
+      random_seed=random_seed,
+      filter_fn=None,
+      drop_remainder=drop_remainder)
+
+    self.preprocess_fn = preprocess_fn
+    self.filename_list = None
+
+  def _decode_fn(self, image, label):
+    return self.preprocess_fn({'image': image, 'label': label})
+
+  def input_fn(self, batch_size):
+    image = tf.truncated_normal(
+      [300, 300, 3],
+      dtype=tf.float32,
+      mean=127,
+      stddev=60,
+      name='synthetic_inputs')
+
+    label = tf.random_uniform(
+      [self.NUM_CLASSES],
+      minval=-1,
+      maxval=2,
+      dtype=tf.int32,
+      name='synthetic_labels')
+
+    dataset = tf.data.Dataset.from_tensors((image, label)).repeat()
+    dataset = dataset.map(self._decode_fn,
+                          num_parallel_calls=self.num_parallel_batches)
+    dataset = dataset.batch(batch_size=batch_size,
+                            drop_remainder=self.drop_remainder)
+
+    # Prefetch overlaps in-feed with training
+    dataset = dataset.prefetch(AUTOTUNE)
+    return dataset
+
+
 DATASET_MAP = {
   'imagenet': DatasetImagenet,
   'wmtfashion': DatasetWalmartFashion,
   'googlefashion': DatasetGoogleFashion,
+  'sythndata': SythnDataset
 }
 
 
@@ -586,7 +670,6 @@ def get_data(params,
   Returns:
     image, label, example counts
   """
-  params['batch_size'] = 1
   batch_mult = FLAGS.unsup_batch_mult if is_training else 1
   filename_list = None
   data = get_data_batch(int(params['batch_size'] * batch_mult),

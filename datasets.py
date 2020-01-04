@@ -410,7 +410,6 @@ class DatasetWalmartFashion(AbstractDataset):
                     lambda: tf.image.decode_png(example[self.IMAGE_KEY], channels=3))
 
     label = tf.cast(example[self.LABEL_KEY], tf.int32)  # a vector here
-
     return self.preprocess_fn({'image': image, 'label': label})
 
   def get_filter(self):  # pylint: disable=missing-docstring
@@ -419,6 +418,19 @@ class DatasetWalmartFashion(AbstractDataset):
       return tf.math.greater_equal(index, 0)
 
     return _filter_fn
+
+  def input_fn(self, batch_size):
+    dataset = self._make_source_dataset()
+    dataset = dataset.map(self._parse_fn, num_parallel_calls=self.num_parallel_batches)
+    if self.shuffle: dataset = dataset.shuffle(self.shuffle_buffer_size, seed=self.random_seed)
+    dataset = dataset.map(self._decode_fn,
+                                      num_parallel_calls=self.num_parallel_batches)
+    dataset = dataset.repeat(self.num_epochs)
+    dataset = dataset.batch(batch_size=batch_size,
+                                        drop_remainder=self.drop_remainder)
+    dataset = dataset.prefetch(AUTOTUNE)
+    return dataset
+
 
 
 class DatasetGoogleFashion(AbstractDataset):
@@ -558,7 +570,7 @@ class SythnDataset(AbstractDataset):
                shuffle,
                random_seed=None,
                filter_filename=None,
-               drop_remainder=True):
+               drop_remainder=True, sup=True):
     """Initialize the dataset object.
 
     Args:

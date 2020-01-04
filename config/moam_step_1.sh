@@ -20,8 +20,8 @@ python main.py \
   --unsup_dataset wmtfashion \
   --train_split trainval \
   --val_split test \
-  --batch_size 7 \
-  --eval_batch_size 80 \
+  --batch_size 1 \
+  --eval_batch_size 2 \
   --filename_list_template 'label_map_count_{}_index_0' \
   --num_supervised_examples 128000 \
   --architecture resnet50v2 \
@@ -31,7 +31,7 @@ python main.py \
   --lr_scale_batch_size 256 \
   --save_checkpoints_steps 10000 \
   --eval_timeout_mins 240 \
-  --schedule '10,100,150,190,200' \
+  --schedule '1,10,15,19,20' \
   --sup_preprocessing 'copy_label|inception_crop|resize(224)|flip_lr|-1_to_1|rotate' \
   --sup_preprocessing_eval 'copy_label|resize_small(224)|crop(224)|-1_to_1|rotate' \
   --preprocessing 'inception_crop|resize(224)|flip_lr|-1_to_1|rotate' \

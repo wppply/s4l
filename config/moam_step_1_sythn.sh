@@ -20,11 +20,11 @@ python main.py \
   --unsup_dataset sythndata \
   --train_split trainval \
   --val_split test \
-  --batch_size 7 \
-  --eval_batch_size 17 \
+  --batch_size 3 \
+  --eval_batch_size 5 \
   --filename_list_template 'label_map_count_{}_index_0' \
-  --num_supervised_examples 100000 \
-  --architecture resnet50v2 \
+  --num_supervised_examples 10000 \
+  --architecture resnet18v2 \
   --filters_factor 16 \
   --weight_decay 0.0002 \
   --lr 0.2 \

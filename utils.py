@@ -65,19 +65,19 @@ def multi_label_metrics(labels, logits, mode="macro", metric="f1"):
   y_pred = tf.cast(tf.math.greater_equal(logits, 0), tf.float32)  # sigmoid 0.5 threshold
 
   axis = 0 if mode == "macro" else None
-  TP = tf.count_nonzero(y_pred * y_true, axis=axis)
-  FP = tf.count_nonzero(y_pred * (y_true - 1), axis=axis)
-  FN = tf.count_nonzero((y_pred - 1) * y_true, axis=axis)
+  TP = tf.cast(tf.count_nonzero(y_pred * y_true, axis=axis), tf.float32) + 1e-6
+  FP = tf.cast(tf.count_nonzero(y_pred * (y_true - 1), axis=axis), tf.float32)
+  FN = tf.cast(tf.count_nonzero((y_pred - 1) * y_true, axis=axis), tf.float32)
 
   if metric == "precision":
-    precision = TP / (TP + FP + 1e-6)
+    precision = TP / (TP + FP)
     return tf.metrics.mean(precision)
   elif metric == "recall":
-    recall = TP / (TP + FN + 1e-6)
+    recall = TP / (TP + FN)
     return tf.metrics.mean(recall)
   elif metric == "f1":
-    precision = TP / (TP + FP + 1e-6)
-    recall = TP / (TP + FN + 1e-6)
+    precision = TP / (TP + FP)
+    recall = TP / (TP + FN)
     f1 = 2 * precision * recall / (precision + recall)
     return tf.metrics.mean(f1)
 

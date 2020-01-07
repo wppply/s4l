@@ -193,23 +193,23 @@ def model_fn(data, mode):
   eval_metrics = (
     lambda labels_rot_unsup, logits_rot_unsup, labels_class, logits_class_orig, logits_class_avg: {
       # pylint: disable=g-long-lambda,line-too-long
-      'rotation top1 accuracy':
+      'eval_overall/ssl rotation accuracy':
         utils.top_k_accuracy(1, labels_rot_unsup, logits_rot_unsup),
-      'classification/unrotated macro precision':
+      'eval_overall/unrotated macro precision':
         utils.multi_label_metrics(labels_class, logits_class_orig, "macro", "precision"),
-      'classification/unrotated macro recall':
+      'eval_overall/unrotated macro recall':
         utils.multi_label_metrics(labels_class, logits_class_orig, "macro", "recall"),
-      'classification/unrotated micro precision':
+      'eval_overall/unrotated micro precision':
         utils.multi_label_metrics(labels_class, logits_class_orig, "micro", "precision"),
-      'classification/unrotated micro recall':
+      'eval_overall/unrotated micro recall':
         utils.multi_label_metrics(labels_class, logits_class_orig, "micro", "recall"),
-      'classification/rot_avg macro precision':
+      'eval_overall/rot_avg macro precision':
         utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "precision"),
-      'classification/rot_avg macro recall':
+      'eval_overall/rot_avg macro recall':
         utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "recall"),
-      'classification/rot_avg micro precision':
+      'eval_overall/rot_avg micro precision':
         utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "precision"),
-      'classification/rot_avg micro recall':
+      'eval_overall/rot_avg micro recall':
         utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "recall"),
     },
     [

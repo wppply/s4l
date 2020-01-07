@@ -93,7 +93,7 @@ def train_and_eval():
         preprocessing=FLAGS.get_flag_value("preprocessing_eval",
                                            FLAGS.preprocessing),
         is_training=False,
-        shuffle=False,
+        shuffle=True,
         num_epochs=1,
         drop_remainder=True)
 

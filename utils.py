@@ -62,7 +62,7 @@ def top_k_accuracy(k, labels, logits):
 def multi_label_metrics(labels, logits, mode="macro", metric="f1"):
   """calculate micro/macro labels base on options"""
   y_true = tf.cast(labels, tf.float32)
-  y_pred = tf.cast(tf.math.grater_equal(logits, 0), tf.float32)  # sigmoid 0.5 threshold
+  y_pred = tf.cast(tf.math.greater_equal(logits, 0), tf.float32)  # sigmoid 0.5 threshold
 
   axis = 0 if mode == "macro" else None
   TP = tf.count_nonzero(y_pred * y_true, axis=axis)
@@ -70,14 +70,14 @@ def multi_label_metrics(labels, logits, mode="macro", metric="f1"):
   FN = tf.count_nonzero((y_pred - 1) * y_true, axis=axis)
 
   if metric == "precision":
-    precision = TP / (TP + FP)
+    precision = TP / (TP + FP + 1e-6)
     return tf.metrics.mean(precision)
   elif metric == "recall":
-    recall = TP / (TP + FN)
+    recall = TP / (TP + FN + 1e-6)
     return tf.metrics.mean(recall)
   elif metric == "f1":
-    precision = TP / (TP + FP)
-    recall = TP / (TP + FN)
+    precision = TP / (TP + FP + 1e-6)
+    recall = TP / (TP + FN + 1e-6)
     f1 = 2 * precision * recall / (precision + recall)
     return tf.metrics.mean(f1)
 

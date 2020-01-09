@@ -323,7 +323,7 @@ class DatasetWalmartFashion(AbstractDataset):
   COUNTS = {'train': 1231121,
             'val': 50046,
             'trainval': 1281167,
-            'test': 50000}
+            'test': 5000}
 
   NUM_CLASSES = 86
   IMAGE_KEY = 'image/encoded'

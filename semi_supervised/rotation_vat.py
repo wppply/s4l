@@ -208,9 +208,9 @@ def model_fn(data, mode):
       'eval_overall/rot_avg macro recall':
         utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "recall"),
       'eval_overall/rot_avg micro precision':
-        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "precision"),
+        utils.multi_label_metrics(labels_class, logits_class_avg, "micro", "precision"),
       'eval_overall/rot_avg micro recall':
-        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "recall"),
+        utils.multi_label_metrics(labels_class, logits_class_avg, "micro", "recall"),
     },
     [
       labels_rot_unsup, end_points['rotations_unsup'],

@@ -45,7 +45,9 @@ flags.DEFINE_string('sup_dataset_dir', None, 'Location of the dataset files.')
 flags.DEFINE_string('unsup_dataset', 'imagenet', 'Which dataset to use: `imagenet`')
 flags.DEFINE_string('unsup_dataset_dir', None, 'Location of the dataset files.')
 
-flags.DEFINE_string('pseudo_label_key', None, 'Key used to retrieve pseudo labels.')
+flags.DEFINE_string('mappin_file_dir', None, 'Location of the dataset files.')
+
+flags.DEFINE_string('pseudo_label_key', None, 'Location of the mapping file attr -> id')
 flags.DEFINE_string('original_label_key', None,
                     'Key used to retrieve original labels if available.')
 flags.DEFINE_bool('cache_dataset', False, 'Whether to cache the dataset after'

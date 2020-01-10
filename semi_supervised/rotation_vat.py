@@ -208,7 +208,7 @@ def model_fn(data, mode):
     }
     attr2ids = utils.read_mapping_attr2ids(FLAGS.mapping_file_dir)
     metrics_by_attrs = utils.metric_by_attrs(attr2ids, labels_class, logits_class_orig)
-    return {**metrics, **metrics_by_attrs}
+    return metrics.update(metrics_by_attrs)
 
   eval_metrics = (build_metric,
                   [

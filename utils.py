@@ -93,8 +93,6 @@ def metric_by_attrs(attr2ids, labels, logits):
   return metrics
 
 
-
-
 def multi_label_metrics(labels, logits, mode="macro", metric="f1"):
   """calculate micro/macro labels base on options"""
   y_true = tf.cast(labels, tf.float32)

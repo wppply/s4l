@@ -138,13 +138,14 @@ def model_fn(data, mode):
 
   # Replicate the supervised label for each rotated version.
   labels_class_repeat = tf.tile(labels_class[:], [num_angles, 1])
-  #labels_class_repeat = tf.reshape(labels_class_repeat, [-1, ])
+  # labels_class_repeat = tf.reshape(labels_class_repeat, [-1, ])
 
   zeros = tf.zeros_like(labels_class_repeat)
   ones = tf.ones_like(labels_class_repeat)
   weights = tf.where(tf.less(labels_class_repeat, 0), zeros, ones)
 
-  loss_class = tf.losses.sigmoid_cross_entropy( multi_class_labels=labels_class_repeat, logits=logits_class, weights=weights)
+  loss_class = tf.losses.sigmoid_cross_entropy(multi_class_labels=labels_class_repeat, logits=logits_class,
+                                               weights=weights)
   loss_class = tf.reduce_mean(loss_class)
 
   # Compute the EntMin regularization loss.
@@ -190,32 +191,30 @@ def model_fn(data, mode):
   logits_class_orig = logits_class[:, 0]
   logits_class_avg = tf.reduce_mean(logits_class, axis=1)
 
-  eval_metrics = (
-    lambda labels_rot_unsup, logits_rot_unsup, labels_class, logits_class_orig, logits_class_avg: {
+  # Read in a mapping
+  def build_metric(labels_rot_unsup, logits_rot_unsup, labels_class, logits_class_orig, logits_class_avg):
+    metrics = {
       # pylint: disable=g-long-lambda,line-too-long
       'eval_overall/ssl rotation accuracy':
         utils.top_k_accuracy(1, labels_rot_unsup, logits_rot_unsup),
-      'eval_overall/unrotated macro precision':
-        utils.multi_label_metrics(labels_class, logits_class_orig, "macro", "precision"),
-      'eval_overall/unrotated macro recall':
-        utils.multi_label_metrics(labels_class, logits_class_orig, "macro", "recall"),
       'eval_overall/unrotated micro precision':
         utils.multi_label_metrics(labels_class, logits_class_orig, "micro", "precision"),
       'eval_overall/unrotated micro recall':
         utils.multi_label_metrics(labels_class, logits_class_orig, "micro", "recall"),
-      'eval_overall/rot_avg macro precision':
-        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "precision"),
-      'eval_overall/rot_avg macro recall':
-        utils.multi_label_metrics(labels_class, logits_class_avg, "macro", "recall"),
       'eval_overall/rot_avg micro precision':
         utils.multi_label_metrics(labels_class, logits_class_avg, "micro", "precision"),
       'eval_overall/rot_avg micro recall':
         utils.multi_label_metrics(labels_class, logits_class_avg, "micro", "recall"),
-    },
-    [
-      labels_rot_unsup, end_points['rotations_unsup'],
-      labels_class, logits_class_orig, logits_class_avg,
-    ])
+    }
+    attr2ids = utils.read_mapping_attr2ids(FLAGS.mapping_file_dir)
+    metrics_by_attrs = utils.metric_by_attrs(attr2ids, labels_class, logits_class_orig)
+    return {**metrics, **metrics_by_attrs}
+
+  eval_metrics = (build_metric,
+                  [
+                    labels_rot_unsup, end_points['rotations_unsup'],
+                    labels_class, logits_class_orig, logits_class_avg,
+                  ])
 
   return trainer.make_estimator(
     mode, loss, eval_metrics, train_scalar_summaries=train_scalar_summaries,

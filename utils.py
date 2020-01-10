@@ -59,6 +59,42 @@ def top_k_accuracy(k, labels, logits):
   return tf.metrics.mean(tf.cast(in_top_k, tf.float32))
 
 
+def read_mapping_attr2ids(mapping_file):
+  """get attr to one hot id by label mapping file"""
+  attr2ids = collections.defaultdict(list)
+
+  with open(mapping_file, 'r', encoding="ISO-8859-1") as f:
+    reader = csv.reader(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    for row in reader:
+      attribute_name = row[1]
+      # value_name = row[2]
+      attr_id = row[3]
+      attr2ids[attribute_name].append(attr_id)
+  return attr2ids
+
+
+def metric_by_attrs(attr2ids, labels, logits):
+  """build a metric dict to define pr/recall for each attr"""
+  from tensorflow.python.framework import sparse_tensor
+  metrics = {}
+  y_true = tf.cast(labels, tf.float32)
+  y_pred = tf.cast(tf.math.greater_equal(logits, 0), tf.float32)  # sigmoid 0.5 threshold
+
+  for attr, ids in attr2ids:
+    attr_mask = sparse_tensor.SparseTensor(indices=[[p] for p in ids],
+                                           values=[1] * len(ids),
+                                           dense_shape=labels.shape)
+    recall = tf.metrics.recall(labels=y_true, predictions=y_pred, weights=attr_mask)
+    precision = tf.metrics.precision(labels=y_true, predictions=y_pred, weights=attr_mask)
+
+    metrics['eval_attr/{}_precision'.format(attr)] = precision
+    metrics['eval_attr/{}_recall'.format(attr)] = recall
+
+  return metrics
+
+
+
+
 def multi_label_metrics(labels, logits, mode="macro", metric="f1"):
   """calculate micro/macro labels base on options"""
   y_true = tf.cast(labels, tf.float32)
@@ -80,7 +116,6 @@ def multi_label_metrics(labels, logits, mode="macro", metric="f1"):
     recall = TP / (TP + FN)
     f1 = 2 * precision * recall / (precision + recall)
     return tf.metrics.mean(f1)
-
 
 
 def into_batch_dim(x, keep_last_dims=-3):
